@@ -6,14 +6,13 @@
 #include <sys/time.h>
 #include <math.h>
 
-#define ADIM 2
-#define DIM 8
-#define BDIM 4
+#define ADIM 2048//2
+#define DIM 1024//8
+#define BDIM 2048//4
 
 //float matA[ADIMX][DIM], matB[DIM][BDIMY], result[ADIMX][BDIMY];
 
-float pk = 1.0/DIM;
-
+float *pk;
 
 void initializeMatrix(int dimy, int dimx, float *mat)
 {
@@ -46,20 +45,53 @@ void printMatrix (int dimy, int dimx, float *mat)
     printf("\n");
 }
 
+void printPkt ()
+{
+    //float sum = 0.0;
+    printf("\n");
+    for (int i = 0; i <  DIM; i++){
+        if ( i % DIM == 0) printf("\n");
+        printf("%f  ", *(pk + i));
+        //sum += *(pk + i);
+    }
+    //printf("sum:%f \n", sum);
+}
+
+void pkt(float *matA, float *matB){
+    int sumAB = 0;
+    for (int t = 0; t < DIM; t++){
+        int sumA = 0;
+        for (int row = 0; row < ADIM; row++){
+            //sumA += matA[row][t];
+            sumA += *( matA + ( row * DIM ) + t );
+        }
+        int sumB = 0;
+        for (int col = 0; col < BDIM; col++){
+            //sumB += matB[t][col];
+            sumB += *( matB + ( t * BDIM ) + col );
+        }
+        pk[t] = sumA * sumB;
+        sumAB += sumA * sumB;
+    }
+
+
+    for (int t = 0; t < DIM; t++){
+        pk[t] /= sumAB;
+    }
+}
+
 void sampleAB(float *matS, float *matA, float *matR, float *matB, int s){
     for (int t = 0; t < s; t++ ){
         int it = rand() % DIM;
         //printf("it: %d\t", it);
         for (int row = 0; row < ADIM; row++){
-            *( matS + ( row * s ) + t ) = (*( matA + ( row * DIM) + it )/(sqrt(s*pk)));
+            *( matS + ( row * s ) + t ) = (*( matA + ( row * DIM) + it )/(sqrt(s*pk[it])));
         }
 
         for (int col = 0; col < BDIM; col++){
-            *( matR + ( t * BDIM ) + col ) = (*( matB + ( it * BDIM ) + col )/(sqrt(s*pk)));
-        }
-        
+            *( matR + ( t * BDIM ) + col ) = (*( matB + ( it * BDIM ) + col )/(sqrt(s*pk[it])));
+        }  
     }
-
 }
 
 void multiplyMatrix(float *matS, float *matR, float *res, int s){
@@ -113,7 +145,9 @@ void beginUniformSampling(){
     matB = (float*)malloc(DIM * BDIM * sizeof(float));
     res = (float*)malloc(ADIM * BDIM * sizeof(float));
 
-    if (matA == NULL || matB == NULL || res == NULL ) printf("Error: if (matA == NULL || matB == NULL || res == NULL )");
+    pk = (float*)malloc( DIM * sizeof(float));
+
+    if (matA == NULL || matB == NULL || res == NULL || pk == NULL) printf("Error: if (matA == NULL || matB == NULL || res == NULL )");
     
     srand(200);
 
@@ -125,21 +159,24 @@ void beginUniformSampling(){
     //printMatrix(DIM, BDIM, matB);
     
     printf("\n Begin Uniform Sampling\n");
-    printf("\npk: %f\n", pk);
     gettimeofday(&tval_before, NULL);
+    //printf("pkt\n");
+    pkt(matA, matB);
+    //printPkt();
     int s = rand() % DIM;
     multiplyMatrixUniformSampling(matA, matB, res, s);
     gettimeofday(&tval_after, NULL);
     timersub(&tval_after, &tval_before, &tval_result);
     printf("\ns: %d\n", s);
-    printf("\nTIME\n");
+    //printf("\nTIME\n");
     printf("%ld,%06ld\n", (long int) tval_result.tv_sec, (long int) tval_result.tv_usec);
-    printf("\nResult US");
-    printMatrix(ADIM, BDIM, res);
+    //printf("\nResult US");
+    //printMatrix(ADIM, BDIM, res);
 
     free(matA);
     free(matB);
     free(res);
+    free(pk);
     
 }
 
